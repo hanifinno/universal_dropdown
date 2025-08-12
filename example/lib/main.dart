@@ -1,150 +1,182 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-
-// import 'package:http/http.dart' as http;
-import 'package:dio/dio.dart';
+import 'package:super_search_delegate/universal_dropdown.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-/// A sample app demonstrating `SuperSearchDelegate` with a custom model.
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Super Search with Model',
-      theme: ThemeData(primarySwatch: Colors.teal),
-      home: const HomePage(),
+    return const MaterialApp(
+      home: DropdownExamplePage(),
+      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-/// Sample model class for search data.
-class PostModel {
-  int? userId;
-  int? id;
-  String? title;
-  String? body;
-
-  PostModel({
-    this.userId,
-    this.id,
-    this.title,
-    this.body,
-  });
-
-  factory PostModel.fromJson(Map<String, dynamic> json) {
-    return PostModel(
-      userId: json['userId'],
-      id: json['id'],
-      title: json['title'],
-      body: json['body'],
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'userId': userId,
-      'id': id,
-      'title': title,
-      'body': body,
-    };
-  }
-}
-
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class DropdownExamplePage extends StatefulWidget {
+  const DropdownExamplePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<DropdownExamplePage> createState() => _DropdownExamplePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  List<PostModel> postList = [];
+class _DropdownExamplePageState extends State<DropdownExamplePage> {
+  // Sample data
+  final List<String> fruits = [
+    "Apple",
+    "Banana",
+    "Orange",
+    "Mango",
+    "Grapes",
+    "Pineapple",
+    "Strawberry",
+  ];
 
-  @override
-  void initState() {
-    fetchData();
-    super.initState();
-  }
+  final List<Map<String, dynamic>> users = [
+    {"name": "Alice", "role": "Admin"},
+    {"name": "Bob", "role": "Editor"},
+    {"name": "Charlie", "role": "Viewer"},
+  ];
 
-//Smaple Api Calling
-  Future<void> fetchData() async {
-    final dio = Dio();
-
-    try {
-      final response = await dio.get(
-        'https://jsonplaceholder.typicode.com/posts',
-        options: Options(
-          headers: {
-            'Authorization':
-                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNtZDVodGFwZDAwMHd1eHBkZnIzYXB2cjAiLCJyb2xlIjoiYWRtaW4iLCJjb21wYW55X2lkIjoiY21kNWh0YWZ4MDAwZnV4cGRlYnFmd2R2cSIsImlhdCI6MTc1MzMyODU3NCwiZXhwIjoxNzUzNTg3Nzc0fQ.gtH4U-ey8YvigHFTSigTaliMz65nu2jvj4-2vyzTwXQ',
-          },
-        ),
-      );
-
-      if (response.statusCode == 200) {
-        postList = (response.data as List)
-            .map((item) => PostModel.fromJson(item))
-            .toList();
-
-        debugPrint('Data fetched: ${postList.length} posts');
-      } else {
-        debugPrint('Error: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('Fetch failed: $e');
-    }
-  }
+  // Selected items for different dropdowns
+  List<String> selectedFruits = [];
+  List<String> selectedSingleFruit = [];
+  List<Map<String, dynamic>> selectedUsers = [];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Search Using Model'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () async {
-              // // Show search delegate
-              // final selected = await SuperSearchDelegate.show<PostModel>(
-              //   context: context,
-              //   config: SearchConfig<PostModel>(
-              //     items: postList,
-              //     itemBuilder: (context, item, query) {
-              //       return ListTile(
-              //         title: Text(item.title ?? ''),
-              //         subtitle: Text('ID: ${item.body}'),
-              //       );
-              //     },
-              //     // Fields to search on
-              //     propertySelector: (item) =>
-              //         [item.id.toString(), item.title.toString()],
-              //     onItemSelected: (item) {
-              //       ScaffoldMessenger.of(context).showSnackBar(
-              //         SnackBar(content: Text('You selected: ${item.userId}')),
-              //       );
-              //     },
-              //   ),
-              // );
+      appBar: AppBar(title: const Text("UniversalDropdown Examples")),
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // 1️⃣ Basic Single Select
+              _buildSectionTitle("1. Basic Single Select"),
+              UniversalDropdown<String>(
+                items: fruits,
+                selectedItems: selectedSingleFruit,
+                itemLabel: (item) => item,
+                onSelectionChanged: (selected) {
+                  setState(() => selectedSingleFruit = selected);
+                },
+              ),
+              _buildSelectedList(selectedSingleFruit),
 
-              // if (selected != null) {
-              //   debugPrint(
-              //       'Selected item: ${selected.title} (${selected.userId})');
-              // }
-            },
+              const Divider(),
+
+              // 2️⃣ Multi Select with Checkboxes
+              _buildSectionTitle("2. Multi Select with Checkboxes"),
+              UniversalDropdown<String>(
+                items: fruits,
+                selectedItems: selectedFruits,
+                itemLabel: (item) => item,
+                isMultiSelect: true,
+                showCheckbox: true,
+                onSelectionChanged: (selected) {
+                  setState(() => selectedFruits = selected);
+                },
+              ),
+              _buildSelectedList(selectedFruits),
+
+              const Divider(),
+
+              // 3️⃣ Searchable Dropdown
+              _buildSectionTitle("3. Searchable Dropdown"),
+              UniversalDropdown<String>(
+                items: fruits,
+                selectedItems: selectedFruits,
+                itemLabel: (item) => item,
+                isMultiSelect: true,
+                showCheckbox: true,
+                searchable: true,
+                onSelectionChanged: (selected) {
+                  setState(() => selectedFruits = selected);
+                },
+              ),
+              _buildSelectedList(selectedFruits),
+
+              const Divider(),
+
+              // 4️⃣ Custom Chip Builder
+              _buildSectionTitle("4. Custom Chip Builder"),
+              UniversalDropdown<String>(
+                items: fruits,
+                selectedItems: selectedFruits,
+                itemLabel: (item) => item,
+                isMultiSelect: true,
+                showCheckbox: true,
+                customChipBuilder: (item) => Chip(
+                  avatar: const Icon(Icons.local_florist,
+                      size: 18, color: Colors.green),
+                  label: Text(item),
+                  backgroundColor: Colors.green.shade100,
+                  onDeleted: () {
+                    setState(() => selectedFruits.remove(item));
+                  },
+                ),
+                onSelectionChanged: (selected) {
+                  setState(() => selectedFruits = selected);
+                },
+              ),
+              _buildSelectedList(selectedFruits),
+
+              const Divider(),
+
+              // 5️⃣ Custom Item Widget (User List)
+              _buildSectionTitle("5. Custom Item Widget"),
+              UniversalDropdown<Map<String, dynamic>>(
+                items: users,
+                selectedItems: selectedUsers,
+                itemLabel: (user) => user["name"],
+                isMultiSelect: true,
+                showCheckbox: true,
+                searchable: true,
+                customItemWidget: (user) => ListTile(
+                  leading: CircleAvatar(child: Text(user["name"][0])),
+                  title: Text(user["name"]),
+                  subtitle: Text("Role: ${user["role"]}"),
+                ),
+                onSelectionChanged: (selected) {
+                  setState(() => selectedUsers = selected);
+                },
+              ),
+              _buildSelectedList(selectedUsers.map((u) => u["name"]).toList()),
+
+              const SizedBox(height: 50),
+            ],
           ),
-        ],
-      ),
-      body: const Center(
-        child: Text(
-          'Tap the 🔍 icon to search by name or ID.',
-          style: TextStyle(fontSize: 16),
         ),
+      ),
+    );
+  }
+
+  /// Helper widget for section titles
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ),
+    );
+  }
+
+  /// Helper widget to display selected items as text
+  Widget _buildSelectedList(List<dynamic> selected) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        "Selected: ${selected.join(", ")}",
+        style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
       ),
     );
   }

@@ -1,7 +1,10 @@
 name: universal_dropdown
 description: A starting point for Dart libraries or applications.
 version: 1.0.0
-# repository: https://github.com/my_org/my_repo
+homepage: https://github.com/hanifinno/universal_dropdown
+repository: https://github.com/hanifinno/universal_dropdown.git
+issues: https://github.com/hanifinno/universal_dropdown/issues
+
 
 environment:
   sdk: ^3.8.1

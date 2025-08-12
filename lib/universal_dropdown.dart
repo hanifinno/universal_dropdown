@@ -1,17 +1,51 @@
 import 'package:flutter/material.dart';
 
+/// A universal dropdown widget that supports:
+/// - Single or multiple selection
+/// - Optional checkboxes
+/// - Searchable list
+/// - Custom item widgets
+/// - Custom chips for selected items
+///
+/// This widget can be displayed inline or inside a bottom sheet.
 class UniversalDropdown<T> extends StatefulWidget {
+  /// The list of all available items to display.
   final List<T> items;
+
+  /// The list of initially selected items.
   final List<T> selectedItems;
+
+  /// Function that maps an item of type [T] to its display label.
   final String Function(T) itemLabel;
+
+  /// Optional custom widget builder for each item.
+  /// If provided, it overrides the default text-based display.
   final Widget Function(T)? customItemWidget;
+
+  /// Enables multi-selection when set to `true`.
+  /// Defaults to `false` (single selection).
   final bool isMultiSelect;
+
+  /// Shows a checkbox for each item if `true`.
+  /// Defaults to `false`.
   final bool showCheckbox;
+
+  /// Enables a search bar to filter items if `true`.
+  /// Defaults to `false`.
   final bool searchable;
+
+  /// Displays the dropdown inside a bottom sheet if `true`.
+  /// Defaults to `false`.
   final bool showAsBottomSheet;
+
+  /// Callback that is triggered whenever the selected items change.
   final void Function(List<T>) onSelectionChanged;
+
+  /// Optional custom chip builder for selected items.
+  /// If not provided, the default [Chip] widget is used.
   final Chip Function(T)? customChipBuilder;
 
+  /// Creates a [UniversalDropdown] widget.
   const UniversalDropdown({
     super.key,
     required this.items,
@@ -41,6 +75,9 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>> {
     selectedItems = List.from(widget.selectedItems);
   }
 
+  /// Handles tapping an item:
+  /// - Toggles selection in multi-select mode
+  /// - Replaces selection in single-select mode
   void _onItemTap(T item) {
     setState(() {
       if (widget.isMultiSelect) {
@@ -61,6 +98,7 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        /// Search bar (only if enabled)
         if (widget.searchable)
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -84,6 +122,8 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>> {
               },
             ),
           ),
+
+        /// Chips for selected items
         Wrap(
           spacing: 6,
           children: selectedItems.map((item) {
@@ -96,6 +136,8 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>> {
                 );
           }).toList(),
         ),
+
+        /// Items list
         Expanded(
           child: ListView.builder(
             itemCount: filteredItems.length,
