@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2025-08-12
+
+### Added
+- Initial release of `universal_dropdown` package.
+- Support for single and multi-select dropdowns.
+- Optional checkboxes for multi-select mode.
+- Searchable dropdown list with live filtering.
+- Custom item widget support for flexible item rendering.
+- Custom chip builder for selected items.
+- Dropdown display modes: inline overlay or bottom sheet.
+- Pagination support with optional asynchronous item fetching.
+- Dropdown positioning with overlay and proper handling of outside taps.
+- Smooth scrolling with automatic loading of additional pages.
+- API-driven example for integration with remote data sources.
+- Full example demo page demonstrating all use cases.
+- Comprehensive unit widget tests covering main functionalities.
+- Detailed README with installation, usage, and API reference.
+
+### Fixed
+- Proper overlay dismissal on outside tap.
+- Scroll listener optimized to avoid multiple page fetches.
+- Assertion to ensure either items or itemFetcher is provided, but not both.
+
 ## [1.0.1] - 2025-08-12
 - Added Description in pubspec .yaml file
 
