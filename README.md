@@ -26,7 +26,7 @@ Add the latest version to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  universal_dropdown: ^1.0.2
+  universal_dropdown: ^1.0.3
 ````
 
 ---

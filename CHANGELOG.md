@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3] - 2025-08-13
+### Fixed
+- CheckBox Update issue
+- Bottomsheet dialog issue
+- Fixed the issue of the button not being able to be clicked in the dialog
+
 ## [1.0.2] - 2025-08-12
 
 ### Added
