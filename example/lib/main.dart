@@ -81,11 +81,11 @@ class _DemoPageState extends State<DemoPage> {
                 style: TextStyle(fontWeight: FontWeight.bold)),
             UniversalDropdown<String>(
               items: fruits,
-              initialSelectedItems: selectedSingle,
+              selectedItems: selectedSingle,
               itemLabel: (item) => item,
-              onSelectionChanged: (selected) =>
+              onChanged: (selected) =>
                   setState(() => selectedSingle = selected),
-              dropdownWidth: 300,
+              // dropdownWidth: 300,
             ),
             _buildSelectedText(selectedSingle),
             const Divider(),
@@ -93,12 +93,11 @@ class _DemoPageState extends State<DemoPage> {
                 style: TextStyle(fontWeight: FontWeight.bold)),
             UniversalDropdown<String>(
               items: fruits,
-              initialSelectedItems: selectedMulti,
+              selectedItems: selectedMulti,
               itemLabel: (item) => item,
-              isMultiSelect: true,
-              onSelectionChanged: (selected) =>
-                  setState(() => selectedMulti = selected),
-              dropdownWidth: 300,
+              multiSelect: true,
+              onChanged: (selected) => setState(() => selectedMulti = selected),
+              // dropdownWidth: 300,
             ),
             _buildSelectedText(selectedMulti),
             const Divider(),
@@ -106,14 +105,14 @@ class _DemoPageState extends State<DemoPage> {
                 style: TextStyle(fontWeight: FontWeight.bold)),
             UniversalDropdown<String>(
               items: fruits,
-              initialSelectedItems: selectedSearchable,
+              selectedItems: selectedSearchable,
               itemLabel: (item) => item,
-              isMultiSelect: true,
+              multiSelect: true,
               // Assuming your UniversalDropdown supports searchable internally;
               // if not, you can extend it with a search bar
-              onSelectionChanged: (selected) =>
+              onChanged: (selected) =>
                   setState(() => selectedSearchable = selected),
-              dropdownWidth: 300,
+              // dropdownWidth: 300,
             ),
             _buildSelectedText(selectedSearchable),
             const Divider(),
@@ -121,10 +120,10 @@ class _DemoPageState extends State<DemoPage> {
                 style: TextStyle(fontWeight: FontWeight.bold)),
             UniversalDropdown<String>(
               items: fruits,
-              initialSelectedItems: selectedCustomChip,
+              selectedItems: selectedCustomChip,
               itemLabel: (item) => item,
-              isMultiSelect: true,
-              onSelectionChanged: (selected) =>
+              multiSelect: true,
+              onChanged: (selected) =>
                   setState(() => selectedCustomChip = selected),
               chipBuilder: (item, onDeleted) => Chip(
                 label: Text(item),
@@ -133,28 +132,27 @@ class _DemoPageState extends State<DemoPage> {
                 backgroundColor: Colors.green.shade100,
                 onDeleted: onDeleted,
               ),
-              dropdownWidth: 300,
+              // dropdownWidth: 300,
             ),
             _buildSelectedText(selectedCustomChip),
             const Divider(),
             const Text('5️⃣ API-driven Paginated Multi Select',
                 style: TextStyle(fontWeight: FontWeight.bold)),
             UniversalDropdown<String>(
-              itemFetcher: fetchUsers,
+              fetchItems: fetchUsers,
               pageSize: 5,
-              initialSelectedItems: selectedApiUsers,
+              selectedItems: selectedApiUsers,
               itemLabel: (item) => item,
-              isMultiSelect: true,
-              onSelectionChanged: (selected) =>
+              multiSelect: true,
+              onChanged: (selected) =>
                   setState(() => selectedApiUsers = selected),
               chipBuilder: (item, onDeleted) => Chip(
                 label: Text(item),
                 backgroundColor: Colors.blue.shade100,
                 onDeleted: onDeleted,
               ),
-              dropdownWidth: 350,
-              showAsBottomSheet:
-                  true, // Try toggling between overlay and bottom sheet
+              mode: DropdownMode
+                  .bottomSheet, // Try toggling between overlay and bottom sheet
             ),
             _buildSelectedText(selectedApiUsers),
             const SizedBox(height: 50),

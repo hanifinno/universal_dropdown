@@ -15,7 +15,7 @@ void main() {
           body: UniversalDropdown<String>(
             items: items,
             itemLabel: (item) => item,
-            onSelectionChanged: (selected) => selectedItems = selected,
+            onChanged: (selected) => selectedItems = selected,
           ),
         ),
       ),
@@ -53,8 +53,8 @@ void main() {
           body: UniversalDropdown<String>(
             items: items,
             itemLabel: (item) => item,
-            isMultiSelect: true,
-            onSelectionChanged: (selected) => selectedItems = selected,
+            multiSelect: true,
+            onChanged: (selected) => selectedItems = selected,
           ),
         ),
       ),
@@ -94,10 +94,10 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: UniversalDropdown<String>(
-            itemFetcher: fetcher,
+            fetchItems: fetcher,
             pageSize: 10,
             itemLabel: (item) => item,
-            onSelectionChanged: (selected) => selectedItems = selected,
+            onChanged: (selected) => selectedItems = selected,
           ),
         ),
       ),
