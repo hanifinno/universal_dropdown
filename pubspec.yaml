@@ -1,14 +1,14 @@
 name: universal_dropdown
 description: A highly customizable and generic dropdown widget for Flutter supporting single/multi selection, search, and custom item widgets.
 
-version: 1.0.6
+version: 1.0.7
 homepage: https://github.com/hanifinno/universal_dropdown
 repository: https://github.com/hanifinno/universal_dropdown.git
 issues: https://github.com/hanifinno/universal_dropdown/issues
 
 
 environment:
-  sdk: ^3.8.1
+  sdk: ^3.0.0
 
 # Add regular dependencies here.
 dependencies:
