@@ -17,31 +17,46 @@ class DropdownDemoPage extends StatefulWidget {
 }
 
 class _DropdownDemoPageState extends State<DropdownDemoPage> {
-  List<String> staticItems = [
-    "Apple",
-    "Banana",
-    "Cherry",
-    "Dragonfruit",
-    "Elderberry",
-    "Fig",
-    "Grapes",
-    "Honeydew",
+  // Single select
+  List<String> selectedSingle = [];
+
+  // Multi select
+  List<String> selectedMulti = [];
+
+  // Searchable multi-select
+  List<String> selectedSearchable = [];
+
+  // Pagination / API simulation
+  List<String> selectedApi = [];
+
+  // Bottom sheet multi-select
+  List<String> selectedBottomSheet = [];
+
+  final List<String> fruits = [
+    'Apple',
+    'Banana',
+    'Mango',
+    'Orange',
+    'Pineapple',
+    'Strawberry',
+    'Watermelon',
+    'Papaya',
+    'Kiwi'
   ];
 
-  List<String> selectedFruits = [];
-  List<String> selectedPaginatedItems = [];
-  List<String> selectedCustomChipItems = [];
-
-  /// Simulated API for pagination
-  Future<List<String>> fetchItems(int page, int pageSize) async {
-    await Future.delayed(const Duration(milliseconds: 800)); // simulate delay
-    int start = page * pageSize;
-    int end = start + pageSize;
-    List<String> allItems = List.generate(
-        50, (index) => "Item ${(index + 1).toString().padLeft(2, '0')}");
-    if (start >= allItems.length) return [];
-    return allItems.sublist(
-        start, end > allItems.length ? allItems.length : end);
+  // Simulate API fetch with pagination
+  Future<List<String>> fetchItems(int page, int pageSize, String query) async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    List<String> all =
+        List.generate(50, (index) => 'Item ${index + 1}'); // 50 simulated items
+    if (query.isNotEmpty) {
+      all = all
+          .where((e) => e.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    }
+    final start = (page - 1) * pageSize;
+    final end = start + pageSize;
+    return all.sublist(start, end > all.length ? all.length : end);
   }
 
   @override
@@ -54,75 +69,75 @@ class _DropdownDemoPageState extends State<DropdownDemoPage> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// 1️⃣ Simple Single Select (Overlay Mode)
-            const Text("Single Select (Overlay)",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('1️⃣ Single Select',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
             UniversalDropdown<String>(
-              items: staticItems,
-              selectedItems:
-                  selectedFruits.isNotEmpty ? [selectedFruits.first] : [],
-              itemLabel: (item) => item,
-              onChanged: (selected) {
-                setState(() => selectedFruits = selected);
-              },
+              items: fruits,
+              selectedItems: selectedSingle,
+              onChanged: (val) => setState(() => selectedSingle = val),
+              itemBuilder: (context, item, selected, index) => Text(item),
               multiSelect: false,
-              searchable: true,
-              searchPlaceholder: "Search fruits...",
-              mode: DropdownMode.overlay,
             ),
-            const SizedBox(height: 20),
-            Text(
-                "Selected: ${selectedFruits.isEmpty ? 'None' : selectedFruits.first}"),
-
-            const Divider(height: 40),
-
-            /// 2️⃣ Multi Select with Chips (BottomSheet Mode)
-            const Text("Multi Select with Chips",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            const Text('2️⃣ Multi Select with Checkbox',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
             UniversalDropdown<String>(
-              items: staticItems,
-              selectedItems: selectedCustomChipItems,
-              itemLabel: (item) => item,
-              onChanged: (selected) {
-                setState(() => selectedCustomChipItems = selected);
-              },
+              items: fruits,
+              selectedItems: selectedMulti,
+              onChanged: (val) => setState(() => selectedMulti = val),
+              itemBuilder: (context, item, selected, index) => Text(item),
+              multiSelect: true,
+              checkboxPosition: CheckboxPosition.leading,
+              chipPlacement: ChipPlacement.belowField,
+            ),
+            const SizedBox(height: 24),
+            const Text('3️⃣ Searchable Multi Select',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            UniversalDropdown<String>(
+              items: fruits,
+              selectedItems: selectedSearchable,
+              onChanged: (val) => setState(() => selectedSearchable = val),
+              itemBuilder: (context, item, selected, index) => Text(item),
               multiSelect: true,
               searchable: true,
-              chipBuilder: (item, onRemove) => Chip(
-                label: Text(item, style: const TextStyle(color: Colors.white)),
-                backgroundColor: Colors.blue,
-                deleteIcon: const Icon(Icons.close, color: Colors.white),
-                onDeleted: onRemove,
-              ),
-              chipSpacing: 8,
-              chipWrapAlignment: WrapAlignment.start,
-              mode: DropdownMode.bottomSheet,
+              chipPlacement: ChipPlacement.belowField,
             ),
-            const SizedBox(height: 20),
-            Text("Selected: ${selectedCustomChipItems.join(', ')}"),
-
-            const Divider(height: 40),
-
-            /// 3️⃣ Paginated Dropdown (Overlay Mode)
-            const Text("Paginated Dropdown",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 24),
+            const Text('4️⃣ Pagination / API Multi Select',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
             UniversalDropdown<String>(
               fetchItems: fetchItems,
-              selectedItems: selectedPaginatedItems,
-              itemLabel: (item) => item,
-              onChanged: (selected) {
-                setState(() => selectedPaginatedItems = selected);
-              },
+              selectedItems: selectedApi,
+              onChanged: (val) => setState(() => selectedApi = val),
+              itemBuilder: (context, item, selected, index) => Text(item),
               multiSelect: true,
-              paginate: true,
-              pageSize: 8,
               searchable: true,
-              searchPlaceholder: "Search items...",
-              mode: DropdownMode.overlay,
+              paginate: true,
+              pageSize: 10,
+              chipPlacement: ChipPlacement.belowField,
+              checkboxPosition: CheckboxPosition.leading,
             ),
-            const SizedBox(height: 20),
-            Text("Selected: ${selectedPaginatedItems.join(', ')}"),
+            const SizedBox(height: 24),
+            const Text('5️⃣ Bottom Sheet Multi Select',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            UniversalDropdown<String>(
+              items: fruits,
+              selectedItems: selectedBottomSheet,
+              onChanged: (val) => setState(() => selectedBottomSheet = val),
+              itemBuilder: (context, item, selected, index) => Text(item),
+              multiSelect: true,
+              mode: DropdownMode.bottomSheet,
+              chipPlacement: ChipPlacement.belowField,
+              checkboxPosition: CheckboxPosition.leading,
+            ),
+            const SizedBox(height: 24),
           ],
         ),
       ),

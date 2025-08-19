@@ -1,396 +1,679 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:universal_dropdown/search_bar_widget.dart';
+
+/// Ultra‑customizable dropdown supporting:
+/// - Overlay / BottomSheet modes
+/// - Single / Multi select
+/// - Full builder-based APIs for items, selected display, chips, checkbox, search bar, loader, empty state
+/// - Async pagination + server-side search
+/// - Layout controls: offsets, alignment, paddings, separators
+///
+/// Drop this file into your project and import it.
 
 enum DropdownMode { overlay, bottomSheet }
 
+enum CheckboxPosition { none, leading, trailing }
+
+enum ChipPlacement { none, aboveField, belowField }
+
 class UniversalDropdown<T> extends StatefulWidget {
-  /// The static list of items to display in the dropdown.
-  /// Use this when you already have all items in memory.
+  /// Static items (optional if using [fetchItems]).
   final List<T>? items;
 
-  /// Asynchronous function to fetch items for pagination.
-  /// Signature: (page, pageSize) → Future<List<T>>
-  /// Called when pagination is enabled and more data needs to be loaded.
-  final Future<List<T>> Function(int page, int pageSize)? fetchItems;
+  /// Pre-selected items (mutated internally via copies; original list is not modified).
+  final List<T>? selectedItems;
 
-  /// The list of currently selected items.
-  /// For single-select, it usually contains 0 or 1 item.
-  /// For multi-select, it can contain multiple items.
-  final List<T> selectedItems;
+  /// Callback when selection changes.
+  final ValueChanged<List<T>> onChanged;
 
-  /// Whether multiple items can be selected.
-  /// If false, selecting one item will replace the previous selection.
+  /// Async data source for pagination / server search.
+  /// Signature: (page, pageSize, searchQuery) => Future<List<T>>
+  final Future<List<T>> Function(int page, int pageSize, String query)?
+  fetchItems;
+
+  /// ===== Behavior =====
   final bool multiSelect;
-
-  /// Whether to show a search bar in the dropdown to filter items.
-  final bool searchable;
-
-  /// Placeholder text shown in the search bar when `searchable` is true.
-  final String searchPlaceholder;
-
-  /// Whether the dropdown should load items in pages (pagination).
-  /// Requires `fetchItems` to be provided.
-  final bool paginate;
-
-  /// The number of items to fetch per page when using pagination.
+  final bool closeOnSelectWhenSingle; // if single-select, close after choosing
+  final bool searchable; // enables search bar rendering
+  final bool paginate; // enable infinite scroll
   final int pageSize;
 
-  /// Function that returns the display label for a given item.
-  /// Example: (user) => user.name
-  final String Function(T) itemLabel;
-
-  /// Callback triggered whenever the selection changes.
-  /// Receives the updated list of selected items.
-  final Function(List<T>) onChanged;
-
-  /// The display mode of the dropdown:
-  /// - `DropdownMode.overlay` → shows floating overlay near the field
-  /// - `DropdownMode.bottomSheet` → shows a modal bottom sheet
+  /// ===== Visuals: Field & Dropdown =====
+  final String
+  placeholder; // shown by default selected display builder when empty
   final DropdownMode mode;
-
-  // ---------------- Styling ----------------
-
-  /// Custom decoration for the dropdown container.
-  /// Example: background color, border radius, shadows, etc.
+  final Alignment dropdownAlignment; // relative alignment for overlay anchor
+  final Offset dropdownOffset; // pixel offset for overlay positioning
   final BoxDecoration? dropdownDecoration;
-
-  /// Maximum height of the dropdown list container.
-  /// Useful to limit large item lists.
   final double dropdownMaxHeight;
+  final EdgeInsetsGeometry dropdownPadding;
 
-  /// Offset adjustment for the dropdown’s position.
-  /// Example: Offset(0, 10) to move it 10px lower than default.
-  final Offset dropdownOffset;
+  /// ===== Builders: give you total control =====
+  /// Item row in the list (you decide every pixel).
+  final Widget Function(
+    BuildContext context,
+    T item,
+    bool isSelected,
+    int index,
+  )
+  itemBuilder;
 
-  /// Alignment of the dropdown relative to its trigger widget.
-  final Alignment dropdownAlignment;
+  /// How the closed field looks. Tap should open the dropdown; we also
+  /// pass a helper [open] to do that and [clear] to clear selection.
+  final Widget Function(
+    BuildContext context,
+    List<T> selected,
+    VoidCallback open,
+    VoidCallback clear,
+  )?
+  selectedDisplayBuilder;
 
-  // ------------- Chip Customization -------------
+  /// Build the checkbox/toggle indicator used for each item.
+  /// If null, a Material Checkbox/Radio is used depending on [multiSelect].
+  final Widget Function(BuildContext context, bool isSelected)? checkboxBuilder;
 
-  /// Custom builder for each selected item chip.
-  /// Useful for styling selected tags differently.
-  /// Parameters:
-  ///   - item: The selected item
-  ///   - onRemove: Callback to remove this item from selection
-  final Widget Function(T item, VoidCallback onRemove)? chipBuilder;
+  /// Where to place the checkbox relative to the item row.
+  final CheckboxPosition checkboxPosition;
 
-  /// Horizontal space between chips when in multi-select mode.
+  /// Chips for multi-select summary (when not providing your own selected display).
+  final Widget Function(BuildContext context, T item, VoidCallback onRemove)?
+  chipBuilder;
+
+  /// Where to render the chips (if using default selected display).
+  final ChipPlacement chipPlacement;
+
+  /// Spacing + alignment for default chips area.
   final double chipSpacing;
-
-  /// Alignment of the chip wrap container.
-  /// Example: WrapAlignment.start, WrapAlignment.center, etc.
   final WrapAlignment chipWrapAlignment;
 
-  const UniversalDropdown({
+  /// Search bar (fully custom). Given controller + clear helper + onChanged.
+  final Widget Function(
+    BuildContext context,
+    TextEditingController controller,
+    VoidCallback clear,
+    ValueChanged<String> onChanged,
+  )?
+  searchBarBuilder;
+
+  /// Loader for pagination.
+  final Widget Function(BuildContext context)? loaderBuilder;
+
+  /// Empty-state when there are no items to show.
+  final Widget Function(BuildContext context)? emptyStateBuilder;
+
+  /// Optional header/footer widgets inside dropdown panel.
+  final Widget Function(BuildContext context)? headerBuilder;
+  final Widget Function(BuildContext context)? footerBuilder;
+
+  /// Optional separator between items.
+  final Widget Function(BuildContext context, int index)? separatorBuilder;
+
+  /// List padding inside dropdown.
+  final EdgeInsetsGeometry listPadding;
+
+  /// Animation tuning (overlay open/close).
+  final Duration animationDuration;
+  final Curve animationCurve;
+
+  UniversalDropdown({
     super.key,
+    // data
     this.items,
-    required this.itemLabel,
+    this.selectedItems,
     required this.onChanged,
-    this.selectedItems = const [],
-    this.multiSelect = false,
-    this.searchable = false,
-    this.searchPlaceholder = "Search...",
-    this.paginate = false,
-    this.pageSize = 10,
     this.fetchItems,
+    // behavior
+    this.multiSelect = false,
+    this.closeOnSelectWhenSingle = true,
+    this.searchable = false,
+    this.paginate = false,
+    this.pageSize = 20,
+    // visuals
+    this.placeholder = 'Select…',
     this.mode = DropdownMode.overlay,
-    this.dropdownDecoration,
-    this.dropdownMaxHeight = 250,
-    this.dropdownOffset = const Offset(0, 0),
     this.dropdownAlignment = Alignment.topLeft,
+    this.dropdownOffset = Offset.zero,
+    this.dropdownDecoration,
+    this.dropdownMaxHeight = 320,
+    this.dropdownPadding = const EdgeInsets.symmetric(
+      vertical: 8,
+      horizontal: 8,
+    ),
+    // builders
+    required this.itemBuilder,
+    this.selectedDisplayBuilder,
+    this.checkboxBuilder,
+    this.checkboxPosition = CheckboxPosition.leading,
     this.chipBuilder,
-    this.chipSpacing = 6,
+    this.chipPlacement = ChipPlacement.belowField,
+    this.chipSpacing = 8,
     this.chipWrapAlignment = WrapAlignment.start,
-  });
+    this.searchBarBuilder,
+    this.loaderBuilder,
+    this.emptyStateBuilder,
+    this.headerBuilder,
+    this.footerBuilder,
+    this.separatorBuilder,
+    this.listPadding = const EdgeInsets.symmetric(vertical: 4),
+    this.animationDuration = const Duration(milliseconds: 180),
+    this.animationCurve = Curves.easeOutCubic,
+  }) : assert(
+         items != null || fetchItems != null,
+         'Provide either static items or a fetchItems callback.',
+       );
 
   @override
   State<UniversalDropdown<T>> createState() => _UniversalDropdownState<T>();
 }
 
-class _UniversalDropdownState<T> extends State<UniversalDropdown<T>> {
-  late List<T> _displayedItems;
-  late List<T> _selectedItems;
-  String _searchText = "";
-  int _currentPage = 0;
-  bool _isLoading = false;
-  OverlayEntry? _overlayEntry;
-  Completer? _bottomSheetCompleter;
-  StateSetter? _bottomSheetSetState;
+class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
+    with SingleTickerProviderStateMixin {
   final LayerLink _layerLink = LayerLink();
-  final TextEditingController _searchController = TextEditingController();
+  OverlayEntry? _overlayEntry;
 
-  List<T>? _cachedFilteredItems;
+  late List<T> _selected;
+  late List<T> _displayed;
+  // final GlobalKey _overlayKey = GlobalKey();
+  Timer? _debounceTimer;
+  bool _isLoading = false;
+  bool _hasMore = true;
+  int _page = 1;
+  String _query = '';
+  FocusScopeNode? _overlayFocusNode;
+  final ScrollController _scrollCtrl = ScrollController();
+  final TextEditingController _searchCtrl = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+
+  late AnimationController _animCtrl;
+  late Animation<double> _opacity;
+  late Animation<double> _scale;
 
   @override
   void initState() {
     super.initState();
-    _selectedItems = List.from(widget.selectedItems);
-    _displayedItems = List.from(widget.items ?? []);
+    _selected = List<T>.from(widget.selectedItems ?? []);
+    _displayed = List<T>.from(widget.items ?? const []);
+    _overlayFocusNode = FocusScopeNode();
+
+    _scrollCtrl.addListener(_handleScroll);
+    _animCtrl = AnimationController(
+      vsync: this,
+      duration: widget.animationDuration,
+    );
+    _opacity = CurvedAnimation(
+      parent: _animCtrl,
+      curve: Interval(0.0, 1.0, curve: widget.animationCurve),
+    );
+    _scale = Tween<double>(begin: 0.98, end: 1.0).animate(_opacity);
+
     if (widget.paginate && widget.fetchItems != null) {
-      _loadPage(0);
+      _resetAndLoad();
     }
-    // Add listener to update search text on typing immediately:
-    _searchController.addListener(() {
-      final val = _searchController.text;
-      if (val != _searchText) {
-        setState(() {
-          _searchText = val;
-          _cachedFilteredItems = null;
-        });
-        _refreshDropdown();
-      }
-    });
+  }
+
+  @override
+  void didUpdateWidget(covariant UniversalDropdown<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedItems != widget.selectedItems) {
+      _selected = List<T>.from(widget.selectedItems ?? []);
+      setState(() {});
+    }
   }
 
   @override
   void dispose() {
-    _searchController.dispose();
+    _overlayEntry?.remove();
+    _overlayFocusNode?.dispose();
+    _debounceTimer?.cancel();
+    _searchFocusNode.dispose();
+    _scrollCtrl.dispose();
+    _searchCtrl.dispose();
+    _animCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadPage(int page) async {
+  void _handleScroll() {
+    if (!widget.paginate || _isLoading || !_hasMore) return;
+    if (_scrollCtrl.position.pixels >=
+        _scrollCtrl.position.maxScrollExtent - 64) {
+      _loadMore();
+    }
+  }
+
+  Future<void> _resetAndLoad() async {
+    print('Resetting and loading items for query: $_query');
+    setState(() {
+      _page = 1;
+      _hasMore = true;
+      _displayed.clear();
+    });
+    await _loadMore();
+  }
+
+  Future<void> _loadMore() async {
     if (widget.fetchItems == null) return;
     setState(() => _isLoading = true);
-    final newItems = await widget.fetchItems!(page, widget.pageSize);
+    final newItems = await widget.fetchItems!(_page, widget.pageSize, _query);
     setState(() {
-      if (page == 0) {
-        _displayedItems = newItems;
-      } else {
-        _displayedItems.addAll(newItems);
-      }
+      _displayed.addAll(newItems);
       _isLoading = false;
-      _cachedFilteredItems = null;
+      if (newItems.length < widget.pageSize) _hasMore = false;
+      _page += 1;
     });
-    _refreshDropdown();
+    _overlayEntry?.markNeedsBuild();
   }
 
-  void _toggleItem(T item) {
-    setState(() {
-      if (widget.multiSelect) {
-        if (_selectedItems.contains(item)) {
-          _selectedItems.remove(item);
-        } else {
-          _selectedItems.add(item);
-        }
-      } else {
-        _selectedItems = [item];
-      }
-      widget.onChanged(_selectedItems);
-    });
-
-    if (!widget.multiSelect) {
-      _removeOverlay();
-    } else {
-      _refreshDropdown();
-    }
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
-    if (_bottomSheetCompleter != null && !_bottomSheetCompleter!.isCompleted) {
-      _bottomSheetCompleter!.complete();
-    }
-    _bottomSheetSetState = null;
-  }
-
-  void _openDropdown() {
-    _searchController.clear();
-    setState(() {
-      _searchText = "";
-      _cachedFilteredItems = null;
-    });
-
-    if (widget.mode == DropdownMode.overlay) {
-      _overlayEntry = _createOverlayEntry();
-      Overlay.of(context).insert(_overlayEntry!);
-    } else {
+  void _open() {
+    if (widget.mode == DropdownMode.bottomSheet) {
       _openBottomSheet();
+    } else {
+      _openOverlay();
     }
   }
 
-  OverlayEntry _createOverlayEntry() {
-    final RenderBox renderBox = context.findRenderObject() as RenderBox;
-    final Size size = renderBox.size;
-    final Offset offset = renderBox.localToGlobal(Offset.zero);
+  void _close() {
+    if (widget.mode == DropdownMode.bottomSheet) {
+      Navigator.of(context).maybePop();
+    } else {
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+    }
+  }
 
-    return OverlayEntry(
-      builder: (context) => GestureDetector(
-        onTap: _removeOverlay,
+  void _openOverlay() {
+    if (_overlayEntry != null) return;
+    final renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+
+    _overlayEntry = OverlayEntry(
+      builder: (ctx) => GestureDetector(
         behavior: HitTestBehavior.translucent,
+        onTap: _close,
         child: Stack(
           children: [
             Positioned(
-              left: offset.dx + widget.dropdownOffset.dx,
-              top: offset.dy + size.height + widget.dropdownOffset.dy,
+              left:
+                  renderBox.localToGlobal(Offset.zero).dx +
+                  widget.dropdownOffset.dx,
+              top:
+                  renderBox.localToGlobal(Offset.zero).dy +
+                  size.height +
+                  widget.dropdownOffset.dy,
               width: size.width,
               child: CompositedTransformFollower(
                 link: _layerLink,
                 offset: Offset(0, size.height),
-                child: _buildDropdownContent(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _openBottomSheet() {
-    _bottomSheetCompleter = Completer();
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        // Wrap with StatefulBuilder
-        builder: (BuildContext context, StateSetter setState) {
-          _bottomSheetSetState = setState; // Store setState function
-          return _buildDropdownContent();
-        },
-      ),
-    ).then((_) {
-      _bottomSheetCompleter?.complete();
-      _bottomSheetCompleter = null;
-      _bottomSheetSetState = null; // Clean up
-    });
-  }
-
-  void _refreshDropdown() {
-    _overlayEntry?.markNeedsBuild();
-    if (_bottomSheetCompleter != null && !_bottomSheetCompleter!.isCompleted) {
-      _bottomSheetCompleter!.complete();
-      _bottomSheetCompleter = null;
-    }
-    if (widget.mode == DropdownMode.bottomSheet &&
-        _bottomSheetSetState != null) {
-      _bottomSheetSetState!(() {});
-    }
-  }
-
-  List<T> _filteredItems() {
-    if (_cachedFilteredItems != null) return _cachedFilteredItems!;
-    if (_searchText.isEmpty) {
-      _cachedFilteredItems = _displayedItems;
-      return _cachedFilteredItems!;
-    }
-    final lower = _searchText.toLowerCase();
-    _cachedFilteredItems = _displayedItems
-        .where((item) => widget.itemLabel(item).toLowerCase().contains(lower))
-        .toList();
-    return _cachedFilteredItems!;
-  }
-
-  Widget _buildDropdownContent() {
-    final filteredItems = _filteredItems();
-    return Material(
-      elevation: 4,
-      child: Container(
-        decoration:
-            widget.dropdownDecoration ??
-            BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-        constraints: BoxConstraints(maxHeight: widget.dropdownMaxHeight),
-        child: Column(
-          children: [
-            if (widget.searchable)
-              Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: widget.searchPlaceholder,
-                    border: OutlineInputBorder(),
-                    isDense: true,
+                child: Material(
+                  color: Colors.transparent,
+                  child: FocusScope(
+                    node: _overlayFocusNode,
+                    child: FadeTransition(
+                      opacity: _opacity,
+                      child: ScaleTransition(
+                        scale: _scale,
+                        alignment: Alignment.topCenter,
+                        child: _panel(),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: filteredItems.length + (_isLoading ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index >= filteredItems.length) {
-                    return const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-                  final item = filteredItems[index];
-                  final isSelected = _selectedItems.contains(item);
-                  return ListTile(
-                    title: Text(widget.itemLabel(item)),
-                    leading: widget.multiSelect
-                        ? Checkbox(
-                            value: isSelected,
-                            onChanged: (_) => _toggleItem(item),
-                          )
-                        : null,
-                    onTap: () => _toggleItem(item),
-                  );
-                },
-              ),
             ),
+          ],
+        ),
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+    _animCtrl.forward(from: 0);
+    // Add delay to ensure overlay is fully built before focusing
+    Future.delayed(const Duration(milliseconds: 10), () {
+      if (_overlayEntry != null) {
+        _searchFocusNode.requestFocus();
+      }
+    });
+  }
+
+  void _openBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setStateForBottomSheet) {
+            return _panel(setStateForBottomSheet: setStateForBottomSheet);
+          },
+        );
+      },
+    ).then((_) {
+      _searchFocusNode.unfocus(); // Unfocus when bottom sheet closes
+    });
+  }
+
+  Widget _buildSearchBar({StateSetter? setStateForBottomSheet}) {
+    void clear() {
+      print('Clearing search query');
+      _searchCtrl.clear();
+      _query = '';
+      if (widget.fetchItems != null) {
+        _resetAndLoad().then((_) {
+          print('Reset and load complete for async items');
+          if (setStateForBottomSheet != null) {
+            setStateForBottomSheet(() {});
+          } else {
+            setState(() {});
+            _overlayEntry?.markNeedsBuild();
+          }
+          // Schedule focus request after rebuild
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (_searchFocusNode.hasFocus) return;
+            _searchFocusNode.requestFocus();
+            print('Focus requested after clear');
+          });
+        });
+      } else {
+        print('Updating displayed items for static list');
+        setState(() {
+          _displayed = List<T>.from(widget.items ?? const []);
+        });
+        if (setStateForBottomSheet != null) {
+          setStateForBottomSheet(() {});
+        }
+        _overlayEntry?.markNeedsBuild();
+        // Schedule focus request after rebuild
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_searchFocusNode.hasFocus) return;
+          _searchFocusNode.requestFocus();
+          print('Focus requested after clear (static)');
+        });
+      }
+    }
+
+    /// Refreshes UI depending on mode (overlay/bottomSheet).
+    void refreshUI() {
+      if (setStateForBottomSheet != null) {
+        setStateForBottomSheet(() {});
+      } else {
+        setState(() {});
+        _overlayEntry?.markNeedsBuild();
+      }
+      // Keep focus only if lost
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_searchFocusNode.hasFocus) {
+          _searchFocusNode.requestFocus();
+          print('Focus restored to search field');
+        }
+      });
+    }
+
+    void performSearch(String query) {
+      print('Performing search with query: $query');
+      _query = query;
+
+      if (widget.fetchItems != null) {
+        // Async search
+        _resetAndLoad().then((_) {
+          print('Async search complete, displayed: ${_displayed.length} items');
+          refreshUI();
+        });
+      } else {
+        // Static filtering
+        final all = widget.items ?? const [];
+        final filtered = all
+            .where(
+              (e) => e.toString().toLowerCase().contains(_query.toLowerCase()),
+            )
+            .toList();
+        print('Filtered ${filtered.length} items for static list');
+        _displayed = filtered;
+        refreshUI();
+      }
+    }
+
+    void handleSearch(String value) {
+      print('Handling search input: $value');
+      if (widget.fetchItems != null) {
+        _debounceTimer?.cancel();
+        _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+          performSearch(value);
+        });
+      } else {
+        performSearch(value);
+      }
+    }
+
+    // Wrap SearchBarWidget in a FocusScope to ensure focus retention
+    return SearchBarWidget<T>(
+      controller: _searchCtrl,
+      focusNode: _searchFocusNode,
+      clear: clear,
+      onChanged: handleSearch,
+      searchBarBuilder: widget.searchBarBuilder,
+    );
+  }
+
+  Widget _panel({StateSetter? setStateForBottomSheet}) {
+    final decoration =
+        widget.dropdownDecoration ??
+        BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(color: Theme.of(context).dividerColor),
+        );
+
+    print('Building panel with ${_displayed.length} items');
+
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        // key: ValueKey(_displayed.length),
+        decoration: decoration,
+        constraints: BoxConstraints(maxHeight: widget.dropdownMaxHeight),
+        padding: widget.dropdownPadding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.headerBuilder != null) widget.headerBuilder!(context),
+            if (widget.searchable)
+              _buildSearchBar(setStateForBottomSheet: setStateForBottomSheet),
+            Expanded(
+              child: _buildList(setStateForBottomSheet: setStateForBottomSheet),
+            ),
+            if (widget.footerBuilder != null) widget.footerBuilder!(context),
+            if (_isLoading)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child:
+                    widget.loaderBuilder?.call(context) ??
+                    const Center(child: CircularProgressIndicator()),
+              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildChips() {
-    if (!widget.multiSelect || _selectedItems.isEmpty) {
-      return const SizedBox.shrink();
+  Widget _buildList({StateSetter? setStateForBottomSheet}) {
+    print('Building list with ${_displayed.length} items: $_displayed');
+
+    if (_displayed.isEmpty && !_isLoading) {
+      return widget.emptyStateBuilder?.call(context) ??
+          const Center(child: Text('No items'));
     }
-    return Wrap(
-      spacing: widget.chipSpacing,
-      alignment: widget.chipWrapAlignment,
-      children: _selectedItems.map((item) {
-        return widget.chipBuilder != null
-            ? widget.chipBuilder!(item, () => _toggleItem(item))
-            : Chip(
-                label: Text(widget.itemLabel(item)),
-                onDeleted: () => _toggleItem(item),
-              );
-      }).toList(),
+
+    return ListView.separated(
+      // key: ValueKey(_displayed.hashCode),
+      controller: _scrollCtrl,
+      padding: widget.listPadding,
+      itemCount: _displayed.length,
+      separatorBuilder: (c, i) =>
+          widget.separatorBuilder?.call(c, i) ?? const SizedBox(height: 0),
+      itemBuilder: (context, index) {
+        final item = _displayed[index];
+        final isSelected = _selected.contains(item);
+
+        final row = InkWell(
+          onTap: () {
+            if (setStateForBottomSheet != null) {
+              setStateForBottomSheet(() {
+                _toggle(item, isSelected);
+              });
+            } else {
+              _toggle(item, isSelected);
+            }
+          },
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (widget.checkboxPosition == CheckboxPosition.leading)
+                _buildCheckbox(isSelected),
+              Expanded(
+                child: widget.itemBuilder(context, item, isSelected, index),
+              ),
+              if (widget.checkboxPosition == CheckboxPosition.trailing)
+                _buildCheckbox(isSelected),
+            ],
+          ),
+        );
+
+        return row;
+      },
     );
+  }
+
+  Widget _buildCheckbox(bool isSelected) {
+    if (widget.checkboxBuilder != null) {
+      return widget.checkboxBuilder!(context, isSelected);
+    }
+    if (!widget.multiSelect) {
+      return Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: Icon(
+          isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+        ),
+      );
+    }
+    return Checkbox(value: isSelected, onChanged: (_) {});
+  }
+
+  void _toggle(T item, bool isSelected) {
+    setState(() {
+      if (widget.multiSelect) {
+        if (isSelected) {
+          _selected.remove(item);
+        } else {
+          _selected.add(item);
+        }
+      } else {
+        _selected
+          ..clear()
+          ..add(item);
+        if (widget.closeOnSelectWhenSingle) _close();
+      }
+    });
+    widget.onChanged(List<T>.from(_selected));
+    if (_overlayEntry != null) {
+      _overlayEntry!.markNeedsBuild();
+    }
+  }
+
+  void _clearSelection() {
+    setState(() => _selected.clear());
+    widget.onChanged(List<T>.from(_selected));
+  }
+
+  Widget _defaultSelectedField() {
+    final hasSelection = _selected.isNotEmpty;
+
+    final chips =
+        (widget.multiSelect &&
+            hasSelection &&
+            widget.chipPlacement != ChipPlacement.none)
+        ? Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Wrap(
+              spacing: widget.chipSpacing,
+              alignment: widget.chipWrapAlignment,
+              children: _selected.map((e) {
+                return widget.chipBuilder?.call(context, e, () {
+                      setState(() => _selected.remove(e));
+                      widget.onChanged(List<T>.from(_selected));
+                    }) ??
+                    Chip(
+                      label: Text(e.toString()),
+                      onDeleted: () {
+                        setState(() => _selected.remove(e));
+                        widget.onChanged(List<T>.from(_selected));
+                      },
+                    );
+              }).toList(),
+            ),
+          )
+        : const SizedBox.shrink();
+
+    final field = GestureDetector(
+      onTap: _open,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: Theme.of(context).dividerColor),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: hasSelection
+                  ? Text(
+                      widget.multiSelect
+                          ? '${_selected.length} selected'
+                          : _selected.first.toString(),
+                    )
+                  : Text(
+                      widget.placeholder,
+                      style: TextStyle(color: Theme.of(context).hintColor),
+                    ),
+            ),
+            Icon(Icons.arrow_drop_down, color: Theme.of(context).hintColor),
+          ],
+        ),
+      ),
+    );
+
+    switch (widget.chipPlacement) {
+      case ChipPlacement.none:
+        return field;
+      case ChipPlacement.aboveField:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [chips, field],
+        );
+      case ChipPlacement.belowField:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [field, chips],
+        );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return CompositedTransformTarget(
-      link: _layerLink,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: _openDropdown,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade400),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: _selectedItems.isEmpty
-                        ? const Text("Select...")
-                        : Text(
-                            widget.multiSelect
-                                ? "${_selectedItems.length} selected"
-                                : widget.itemLabel(_selectedItems.first),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                  ),
-                  const Icon(Icons.arrow_drop_down),
-                ],
-              ),
-            ),
-          ),
-          _buildChips(),
-        ],
-      ),
-    );
+    final selectedField =
+        widget.selectedDisplayBuilder?.call(
+          context,
+          List<T>.from(_selected),
+          _open,
+          _clearSelection,
+        ) ??
+        _defaultSelectedField();
+
+    return CompositedTransformTarget(link: _layerLink, child: selectedField);
   }
 }
