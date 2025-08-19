@@ -313,7 +313,13 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
                       child: ScaleTransition(
                         scale: _scale,
                         alignment: Alignment.topCenter,
-                        child: _panel(),
+                        child: Container(
+                          constraints: BoxConstraints(
+                            maxHeight:
+                                widget.dropdownMaxHeight, // <-- important
+                          ),
+                          child: _panel(),
+                        ),
                       ),
                     ),
                   ),
@@ -339,15 +345,33 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent, // keep panel decoration
       builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setStateForBottomSheet) {
-            return _panel(setStateForBottomSheet: setStateForBottomSheet);
+        return DraggableScrollableSheet(
+          initialChildSize: 0.5, // start at 50%
+          minChildSize: 0.3, // minimum 30%
+          maxChildSize: 1.0, // allow full screen
+          expand: true, // enable full expansion
+          builder: (context, scrollController) {
+            return StatefulBuilder(
+              builder:
+                  (BuildContext context, StateSetter setStateForBottomSheet) {
+                    // Wrap panel in container with flexible height
+                    return Container(
+                      height: double.infinity, // ensures full height drag
+                      child: _panel(
+                        setStateForBottomSheet: setStateForBottomSheet,
+                        externalScrollController:
+                            scrollController, // pass sheet controller to list
+                      ),
+                    );
+                  },
+            );
           },
         );
       },
     ).then((_) {
-      _searchFocusNode.unfocus(); // Unfocus when bottom sheet closes
+      _searchFocusNode.unfocus(); // unfocus search when closed
     });
   }
 
@@ -453,7 +477,10 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
     );
   }
 
-  Widget _panel({StateSetter? setStateForBottomSheet}) {
+  Widget _panel({
+    StateSetter? setStateForBottomSheet,
+    ScrollController? externalScrollController, // <-- new optional param
+  }) {
     final decoration =
         widget.dropdownDecoration ??
         BoxDecoration(
@@ -463,29 +490,32 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
             BoxShadow(
               color: Colors.black.withOpacity(0.06),
               blurRadius: 12,
-              offset: const Offset(0, 4),
+              offset: Offset(0, 4),
             ),
           ],
           border: Border.all(color: Theme.of(context).dividerColor),
         );
 
-    print('Building panel with ${_displayed.length} items');
-
     return Material(
       color: Colors.transparent,
       child: Container(
-        // key: ValueKey(_displayed.length),
         decoration: decoration,
-        constraints: BoxConstraints(maxHeight: widget.dropdownMaxHeight),
+        constraints: BoxConstraints(
+          maxHeight: double.infinity,
+        ), // allow full height
         padding: widget.dropdownPadding,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: MainAxisSize.max,
           children: [
             if (widget.headerBuilder != null) widget.headerBuilder!(context),
             if (widget.searchable)
               _buildSearchBar(setStateForBottomSheet: setStateForBottomSheet),
             Expanded(
-              child: _buildList(setStateForBottomSheet: setStateForBottomSheet),
+              child: _buildList(
+                setStateForBottomSheet: setStateForBottomSheet,
+                externalScrollController:
+                    externalScrollController, // pass controller
+              ),
             ),
             if (widget.footerBuilder != null) widget.footerBuilder!(context),
             if (_isLoading)
@@ -501,17 +531,14 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
     );
   }
 
-  Widget _buildList({StateSetter? setStateForBottomSheet}) {
-    print('Building list with ${_displayed.length} items: $_displayed');
-
-    if (_displayed.isEmpty && !_isLoading) {
-      return widget.emptyStateBuilder?.call(context) ??
-          const Center(child: Text('No items'));
-    }
+  Widget _buildList({
+    StateSetter? setStateForBottomSheet,
+    ScrollController? externalScrollController,
+  }) {
+    final controller = externalScrollController ?? _scrollCtrl;
 
     return ListView.separated(
-      // key: ValueKey(_displayed.hashCode),
-      controller: _scrollCtrl,
+      controller: controller,
       padding: widget.listPadding,
       itemCount: _displayed.length,
       separatorBuilder: (c, i) =>
@@ -548,6 +575,50 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
       },
     );
   }
+
+  // Widget _buildList(
+  //     {StateSetter? setStateForBottomSheet,
+  //     ScrollController? externalScrollController}) {
+  //   final controller = externalScrollController ?? _scrollCtrl;
+
+  //   return ListView.separated(
+  //     controller: controller,
+  //     padding: widget.listPadding,
+  //     itemCount: _displayed.length,
+  //     separatorBuilder: (c, i) =>
+  //         widget.separatorBuilder?.call(c, i) ?? const SizedBox(height: 0),
+  //     itemBuilder: (context, index) {
+  //       final item = _displayed[index];
+  //       final isSelected = _selected.contains(item);
+
+  //       final row = InkWell(
+  //         onTap: () {
+  //           if (setStateForBottomSheet != null) {
+  //             setStateForBottomSheet(() {
+  //               _toggle(item, isSelected);
+  //             });
+  //           } else {
+  //             _toggle(item, isSelected);
+  //           }
+  //         },
+  //         child: Row(
+  //           crossAxisAlignment: CrossAxisAlignment.center,
+  //           children: [
+  //             if (widget.checkboxPosition == CheckboxPosition.leading)
+  //               _buildCheckbox(isSelected),
+  //             Expanded(
+  //               child: widget.itemBuilder(context, item, isSelected, index),
+  //             ),
+  //             if (widget.checkboxPosition == CheckboxPosition.trailing)
+  //               _buildCheckbox(isSelected),
+  //           ],
+  //         ),
+  //       );
+
+  //       return row;
+  //     },
+  //   );
+  // }
 
   Widget _buildCheckbox(bool isSelected) {
     if (widget.checkboxBuilder != null) {
