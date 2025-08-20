@@ -2,6 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.8] - 2025-08-20
+- draggable handle panel Background color property added
+
 ## [1.0.7] - 2025-08-19
 - Make Compatiable for Dart SDK Version 3.0.0 and Upper
 

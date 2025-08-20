@@ -30,7 +30,7 @@ class UniversalDropdown<T> extends StatefulWidget {
   /// Async data source for pagination / server search.
   /// Signature: (page, pageSize, searchQuery) => Future<List<T>>
   final Future<List<T>> Function(int page, int pageSize, String query)?
-  fetchItems;
+      fetchItems;
 
   /// ===== Behavior =====
   final bool multiSelect;
@@ -41,7 +41,7 @@ class UniversalDropdown<T> extends StatefulWidget {
 
   /// ===== Visuals: Field & Dropdown =====
   final String
-  placeholder; // shown by default selected display builder when empty
+      placeholder; // shown by default selected display builder when empty
   final DropdownMode mode;
   final Alignment dropdownAlignment; // relative alignment for overlay anchor
   final Offset dropdownOffset; // pixel offset for overlay positioning
@@ -56,8 +56,7 @@ class UniversalDropdown<T> extends StatefulWidget {
     T item,
     bool isSelected,
     int index,
-  )
-  itemBuilder;
+  ) itemBuilder;
 
   /// How the closed field looks. Tap should open the dropdown; we also
   /// pass a helper [open] to do that and [clear] to clear selection.
@@ -66,8 +65,7 @@ class UniversalDropdown<T> extends StatefulWidget {
     List<T> selected,
     VoidCallback open,
     VoidCallback clear,
-  )?
-  selectedDisplayBuilder;
+  )? selectedDisplayBuilder;
 
   /// Build the checkbox/toggle indicator used for each item.
   /// If null, a Material Checkbox/Radio is used depending on [multiSelect].
@@ -78,7 +76,7 @@ class UniversalDropdown<T> extends StatefulWidget {
 
   /// Chips for multi-select summary (when not providing your own selected display).
   final Widget Function(BuildContext context, T item, VoidCallback onRemove)?
-  chipBuilder;
+      chipBuilder;
 
   /// Where to render the chips (if using default selected display).
   final ChipPlacement chipPlacement;
@@ -87,14 +85,16 @@ class UniversalDropdown<T> extends StatefulWidget {
   final double chipSpacing;
   final WrapAlignment chipWrapAlignment;
 
+  /// Draggable Handle Panel Background Color?
+  final Color dragPanelBgColor;
+
   /// Search bar (fully custom). Given controller + clear helper + onChanged.
   final Widget Function(
     BuildContext context,
     TextEditingController controller,
     VoidCallback clear,
     ValueChanged<String> onChanged,
-  )?
-  searchBarBuilder;
+  )? searchBarBuilder;
 
   /// Loader for pagination.
   final Widget Function(BuildContext context)? loaderBuilder;
@@ -123,6 +123,7 @@ class UniversalDropdown<T> extends StatefulWidget {
     this.selectedItems,
     required this.onChanged,
     this.fetchItems,
+    this.dragPanelBgColor = Colors.white,
     // behavior
     this.multiSelect = false,
     this.closeOnSelectWhenSingle = true,
@@ -159,9 +160,9 @@ class UniversalDropdown<T> extends StatefulWidget {
     this.animationDuration = const Duration(milliseconds: 180),
     this.animationCurve = Curves.easeOutCubic,
   }) : assert(
-         items != null || fetchItems != null,
-         'Provide either static items or a fetchItems callback.',
-       );
+          items != null || fetchItems != null,
+          'Provide either static items or a fetchItems callback.',
+        );
 
   @override
   State<UniversalDropdown<T>> createState() => _UniversalDropdownState<T>();
@@ -293,11 +294,9 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
         child: Stack(
           children: [
             Positioned(
-              left:
-                  renderBox.localToGlobal(Offset.zero).dx +
+              left: renderBox.localToGlobal(Offset.zero).dx +
                   widget.dropdownOffset.dx,
-              top:
-                  renderBox.localToGlobal(Offset.zero).dy +
+              top: renderBox.localToGlobal(Offset.zero).dy +
                   size.height +
                   widget.dropdownOffset.dy,
               width: size.width,
@@ -345,27 +344,28 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent, // keep panel decoration
+      showDragHandle: true,
+      backgroundColor: widget.dragPanelBgColor, // keep panel decoration
       builder: (BuildContext context) {
         return DraggableScrollableSheet(
           initialChildSize: 0.5, // start at 50%
           minChildSize: 0.3, // minimum 30%
           maxChildSize: 1.0, // allow full screen
-          expand: true, // enable full expansion
+          expand: false, // enable full expansion
           builder: (context, scrollController) {
             return StatefulBuilder(
               builder:
                   (BuildContext context, StateSetter setStateForBottomSheet) {
-                    // Wrap panel in container with flexible height
-                    return Container(
-                      height: double.infinity, // ensures full height drag
-                      child: _panel(
-                        setStateForBottomSheet: setStateForBottomSheet,
-                        externalScrollController:
-                            scrollController, // pass sheet controller to list
-                      ),
-                    );
-                  },
+                // Wrap panel in container with flexible height
+                return SizedBox(
+                  height: double.infinity, // ensures full height drag
+                  child: _panel(
+                    setStateForBottomSheet: setStateForBottomSheet,
+                    externalScrollController:
+                        scrollController, // pass sheet controller to list
+                  ),
+                );
+              },
             );
           },
         );
@@ -481,8 +481,7 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
     StateSetter? setStateForBottomSheet,
     ScrollController? externalScrollController, // <-- new optional param
   }) {
-    final decoration =
-        widget.dropdownDecoration ??
+    final decoration = widget.dropdownDecoration ??
         BoxDecoration(
           color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
@@ -521,8 +520,7 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
             if (_isLoading)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child:
-                    widget.loaderBuilder?.call(context) ??
+                child: widget.loaderBuilder?.call(context) ??
                     const Center(child: CircularProgressIndicator()),
               ),
           ],
@@ -664,8 +662,7 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
   Widget _defaultSelectedField() {
     final hasSelection = _selected.isNotEmpty;
 
-    final chips =
-        (widget.multiSelect &&
+    final chips = (widget.multiSelect &&
             hasSelection &&
             widget.chipPlacement != ChipPlacement.none)
         ? Padding(
@@ -736,8 +733,7 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
 
   @override
   Widget build(BuildContext context) {
-    final selectedField =
-        widget.selectedDisplayBuilder?.call(
+    final selectedField = widget.selectedDisplayBuilder?.call(
           context,
           List<T>.from(_selected),
           _open,
