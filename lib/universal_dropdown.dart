@@ -85,9 +85,6 @@ class UniversalDropdown<T> extends StatefulWidget {
   final double chipSpacing;
   final WrapAlignment chipWrapAlignment;
 
-  /// Draggable Handle Panel Background Color?
-  final Color dragPanelBgColor;
-
   /// Search bar (fully custom). Given controller + clear helper + onChanged.
   final Widget Function(
     BuildContext context,
@@ -109,6 +106,9 @@ class UniversalDropdown<T> extends StatefulWidget {
   /// Optional separator between items.
   final Widget Function(BuildContext context, int index)? separatorBuilder;
 
+  ///BottomSheet Draggable Panel background Color
+  final Color dragPanelBgColor;
+
   /// List padding inside dropdown.
   final EdgeInsetsGeometry listPadding;
 
@@ -123,13 +123,13 @@ class UniversalDropdown<T> extends StatefulWidget {
     this.selectedItems,
     required this.onChanged,
     this.fetchItems,
-    this.dragPanelBgColor = Colors.white,
     // behavior
     this.multiSelect = false,
     this.closeOnSelectWhenSingle = true,
     this.searchable = false,
     this.paginate = false,
     this.pageSize = 20,
+    this.dragPanelBgColor = Colors.white,
     // visuals
     this.placeholder = 'Select…',
     this.mode = DropdownMode.overlay,
@@ -198,6 +198,7 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
     _overlayFocusNode = FocusScopeNode();
 
     _scrollCtrl.addListener(_handleScroll);
+
     _animCtrl = AnimationController(
       vsync: this,
       duration: widget.animationDuration,
@@ -313,12 +314,11 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
                         scale: _scale,
                         alignment: Alignment.topCenter,
                         child: Container(
-                          constraints: BoxConstraints(
-                            maxHeight:
-                                widget.dropdownMaxHeight, // <-- important
-                          ),
-                          child: _panel(),
-                        ),
+                            constraints: BoxConstraints(
+                              maxHeight:
+                                  widget.dropdownMaxHeight, // <-- important
+                            ),
+                            child: _panel()),
                       ),
                     ),
                   ),
@@ -353,6 +353,7 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
           maxChildSize: 1.0, // allow full screen
           expand: false, // enable full expansion
           builder: (context, scrollController) {
+            scrollController.addListener(_handleScroll);
             return StatefulBuilder(
               builder:
                   (BuildContext context, StateSetter setStateForBottomSheet) {
@@ -487,10 +488,9 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
-              blurRadius: 12,
-              offset: Offset(0, 4),
-            ),
+                color: Colors.black.withOpacity(0.06),
+                blurRadius: 12,
+                offset: Offset(0, 4))
           ],
           border: Border.all(color: Theme.of(context).dividerColor),
         );
@@ -499,9 +499,8 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
       color: Colors.transparent,
       child: Container(
         decoration: decoration,
-        constraints: BoxConstraints(
-          maxHeight: double.infinity,
-        ), // allow full height
+        constraints:
+            BoxConstraints(maxHeight: double.infinity), // allow full height
         padding: widget.dropdownPadding,
         child: Column(
           mainAxisSize: MainAxisSize.max,
@@ -561,8 +560,7 @@ class _UniversalDropdownState<T> extends State<UniversalDropdown<T>>
               if (widget.checkboxPosition == CheckboxPosition.leading)
                 _buildCheckbox(isSelected),
               Expanded(
-                child: widget.itemBuilder(context, item, isSelected, index),
-              ),
+                  child: widget.itemBuilder(context, item, isSelected, index)),
               if (widget.checkboxPosition == CheckboxPosition.trailing)
                 _buildCheckbox(isSelected),
             ],

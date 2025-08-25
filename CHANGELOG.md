@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.10] - 2025-08-25
+- scrollistener added to openBottomSheet
+
+## [1.0.9] - 2025-08-25
+- scrollcontroller managed internally
+
 ## [1.0.8] - 2025-08-20
 - draggable handle panel Background color property added
 
