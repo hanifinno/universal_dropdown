@@ -1,5 +1,3 @@
-Got it ✅
-Here’s a **README.md** styled like your example, but adapted for your current `UniversalDropdown<T>` implementation with **all the real parameters** and proper examples.
 
 ---
 
@@ -32,7 +30,7 @@ Add the latest version to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  universal_dropdown: ^1.0.10
+  universal_dropdown: ^1.0.11
 ````
 
 ---
